@@ -11,6 +11,7 @@ void CTask::SetData(void *data)
 vector<pthread_t> CThreadPool::m_vecBusyThread;
 vector<pthread_t> CThreadPool::m_vecIdleThread;
 pthread_mutex_t CThreadPool::m_pthreadMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t CThreadPool::m_vectorMutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t CThreadPool::m_pthreadCond = PTHREAD_COND_INITIALIZER;
 
 CThreadPool::CThreadPool(int threadNum)
@@ -59,14 +60,18 @@ void* CThreadPool::ThreadFunc(void * threadData)
 	while(1)
 	{
 		pthread_mutex_lock(&m_pthreadMutex);
-		pthread_cond_wait(&m_pthreadCond,&m_pthreadMutex);
+		vector<CTask*> *taskList = (vector<CTask*> *)threadData;
+		while (taskList->empty()) {
+			pthread_cond_wait(&m_pthreadCond,&m_pthreadMutex);
+		}
 		cout << "tid:" << tid << " run" << endl;
 
-		vector<CTask*> *taskList = (vector<CTask*> *)threadData;
 		vector<CTask*>::iterator iter = taskList->begin();
 		while(iter != taskList->end())
 		{
+			pthread_mutex_lock(&m_vectorMutex);
 			MoveToBusy(tid);
+			pthread_mutex_unlock(&m_vectorMutex);
 			break;
 		}
 		CTask* task = *iter;
@@ -75,7 +80,10 @@ void* CThreadPool::ThreadFunc(void * threadData)
 		//cout << "idel thread number:" << CThreadPool::m_vecIdleThread.size() << endl;
 		//cout << "busy thread number:" << CThreadPool::m_vecBusyThread.size() << endl;
 		task->Run();
+		delete task;
+		pthread_mutex_lock(&m_vectorMutex);
 		MoveToIdle(tid);
+		pthread_mutex_unlock(&m_vectorMutex);
 		//cout << "idel thread number:" << CThreadPool::m_vecIdleThread.size() << endl;
 		//cout << "busy thread number:" << CThreadPool::m_vecBusyThread.size() << endl;
 		//cout << "tid:" << tid << " idle" << endl;
@@ -85,7 +93,9 @@ void* CThreadPool::ThreadFunc(void * threadData)
 
 int CThreadPool::AddTask(CTask *task)
 {
+	pthread_mutex_lock(&m_pthreadMutex);
 	m_vecTaskList.push_back(task);
+	pthread_mutex_unlock(&m_pthreadMutex);
 	pthread_cond_signal(&m_pthreadCond);
 	return 0;
 }
@@ -104,6 +114,7 @@ int CThreadPool::Create()
 
 int CThreadPool::StopAll()
 {
+	pthread_mutex_lock(&m_vectorMutex);
 	vector<pthread_t>::iterator iter = m_vecIdleThread.begin();
 	while(iter != m_vecIdleThread.end())
 	{
@@ -119,6 +130,7 @@ int CThreadPool::StopAll()
 		pthread_join(*iter,NULL);
 		iter++;
 	}
+	pthread_mutex_unlock(&m_vectorMutex);
 
 	return 0;
 }

@@ -1,5 +1,6 @@
 #include "ThreadPool.h"
 #include <unistd.h>
+#include <stdio.h>
 #include <iostream>
 
 using namespace std;
@@ -12,24 +13,32 @@ public:
 	{
 		cout << (char*)this->m_ptrData << endl;
 		sleep(10);
+		cout << "over" << endl;
 		return 0;
 	}
 };
 
 int main()
 {
-	CWorkTask taskObj;
-	char szTmp[] = "this is the first thread running,haha success";
-	taskObj.SetData((void*)szTmp);
 	CThreadPool threadPool(10);
-	int i;
-	for(i = 0;i < 11;i++)
+	for(int i = 0;i < 20;i++)
 	{
-		threadPool.AddTask(&taskObj);
+		CWorkTask *taskObj = new CWorkTask;
+		char szTmp[] = "this is the first thread running,haha success";
+		taskObj->SetData((void*)szTmp);
+		sleep(0.1);
+		threadPool.AddTask(taskObj);
+		/*CWorkTask *taskObj = new CWorkTask();
+		char szTmp[] = "this is the first thread running,haha success";
+		char buf[200];
+		sprintf(buf,"%s:%d", szTmp, i);
+		taskObj->SetData((void*)buf);
+		cout << buf << endl;
+		threadPool.AddTask(taskObj);*/
 	}
 	while(1)
 	{
-		cout << "idel thread number:" << CThreadPool::m_vecIdleThread.size() << endl;
+		cout << "idle thread number:" << CThreadPool::m_vecIdleThread.size() << endl;
 		cout << "busy thread number:" << CThreadPool::m_vecBusyThread.size() << endl;
 		sleep(2);
 	}

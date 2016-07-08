@@ -27,6 +27,7 @@ private:
 	vector<CTask *> m_vecTaskList;
 	int m_iThreadNum;
 	static pthread_mutex_t m_pthreadMutex;
+	static pthread_mutex_t m_vectorMutex;
 	static pthread_cond_t m_pthreadCond;
 protected:
 	static void* ThreadFunc(void *threadData);
